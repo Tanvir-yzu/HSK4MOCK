@@ -319,9 +319,24 @@
             <h2 class="text-lg font-semibold text-gray-800">Audio (MP3)</h2>
             <p class="text-sm text-gray-600 mt-1">Play the audio for the selected PDF when available.</p>
             <div class="mt-4" x-show="activeAudioUrl">
-                <audio controls class="w-full" preload="none" :src="activeAudioUrl">
+                <audio
+                    x-ref="audioPlayer"
+                    controls
+                    class="w-full"
+                    preload="none"
+                    :src="activeAudioUrl"
+                    @timeupdate="updateAudioProgress"
+                    @loadedmetadata="updateAudioProgress"
+                >
                     Your browser does not support MP3 playback.
                 </audio>
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <button class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700" @click="seekAudio(-10)">-10s</button>
+                    <button class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700" @click="seekAudio(-5)">-5s</button>
+                    <button class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700" @click="seekAudio(5)">+5s</button>
+                    <button class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700" @click="seekAudio(10)">+10s</button>
+                    <span class="text-sm text-gray-500 ml-2" x-text="formatAudioTime(audioCurrentTime) + ' / ' + formatAudioTime(audioDuration)"></span>
+                </div>
             </div>
             <div class="mt-4 text-sm text-gray-500" x-show="!activeAudioUrl">
                 No MP3 linked to the selected file.
@@ -418,6 +433,8 @@
                 useNativeViewer: false,
                 nativeFrameUrl: '',
                 activeAudioUrl: '',
+                audioCurrentTime: 0,
+                audioDuration: 0,
                 
                 // Initialize
                 init() {
@@ -459,6 +476,8 @@
                     this.nativeFrameUrl = '';
                     this.pdfDoc = null;
                     this.activeAudioUrl = file.audioUrl || '';
+                    this.audioCurrentTime = 0;
+                    this.audioDuration = 0;
 
                     try {
                         this.pdfDoc = await this.loadPdfDocument(file.url);
@@ -579,6 +598,33 @@
                     if (this.pdfDoc) {
                         this.queueRenderPage(this.currentPage);
                     }
+                },
+
+                // Seek current audio by seconds (negative/positive)
+                seekAudio(deltaSeconds) {
+                    const player = this.$refs.audioPlayer;
+                    if (!player) return;
+
+                    const maxTime = Number.isFinite(player.duration) ? player.duration : Number.MAX_SAFE_INTEGER;
+                    const nextTime = Math.max(0, Math.min(player.currentTime + deltaSeconds, maxTime));
+                    player.currentTime = nextTime;
+                    this.updateAudioProgress();
+                },
+
+                // Keep current time and duration in sync with player events
+                updateAudioProgress() {
+                    const player = this.$refs.audioPlayer;
+                    if (!player) return;
+
+                    this.audioCurrentTime = Number.isFinite(player.currentTime) ? player.currentTime : 0;
+                    this.audioDuration = Number.isFinite(player.duration) ? player.duration : 0;
+                },
+
+                formatAudioTime(seconds) {
+                    const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+                    const minutes = Math.floor(safeSeconds / 60);
+                    const remainSeconds = safeSeconds % 60;
+                    return `${minutes}:${String(remainSeconds).padStart(2, '0')}`;
                 },
                 
                 // Download current file
