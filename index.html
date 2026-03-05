@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF文件查看器</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- PDF.js 用于渲染PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        /* 自定义滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* PDF查看器自定义样式 */
+        .pdf-canvas {
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            border-radius: 0.5rem;
+        }
+        
+        /* 文件项悬停效果 */
+        .file-item:hover {
+            transform: translateX(4px);
+            transition: transform 0.2s ease;
+        }
+        
+        /* 加载动画 */
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="pdfViewer()" x-init="init()">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 标题区域 -->
+        <header class="mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">📄 PDF文件查看器</h1>
+                    <p class="text-gray-600 mt-2">点击左侧文件列表中的PDF文件，在右侧查看器中查看</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg">
+                        <span class="font-semibold" x-text="pdfFiles.length"></span> 个PDF文件
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 搜索框 -->
+            <div class="relative">
+                <input 
+                    type="text" 
+                    placeholder="搜索PDF文件..." 
+                    class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                    x-model="searchQuery"
+                    @input="filterFiles()"
+                >
+                <svg class="absolute left-3 top-3.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- 左侧文件列表 -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">文件列表</h2>
+                        <span class="text-sm text-gray-500" x-text="filteredFiles.length + ' 个项目'"></span>
+                    </div>
+                    
+                    <!-- 文件列表容器 -->
+                    <div class="space-y-2 max-h-[600px] overflow-y-auto pr-2" id="fileListContainer">
+                        <template x-for="(file, index) in filteredFiles" :key="index">
+                            <div 
+                                class="file-item p-3 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 cursor-pointer transition-all"
+                                :class="{'bg-blue-50 border-blue-300': activeFileIndex === index}"
+                                @click="openPdf(index)"
+                            >
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                        <span class="text-red-600 font-bold text-sm">PDF</span>
+                                    </div>
+                                    <div class="ml-3 flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-900 truncate" x-text="file.name"></p>
+                                        <div class="flex items-center mt-1">
+                                            <span class="text-xs text-gray-500" x-text="formatFileSize(file.size)"></span>
+                                            <span class="mx-2 text-gray-300">•</span>
+                                            <span class="text-xs text-gray-500" x-text="file.date"></span>
+                                        </div>
+                                    </div>
+                                    <div class="flex-shrink-0">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <!-- 无结果时显示 -->
+                        <div x-show="filteredFiles.length === 0" class="text-center py-8">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900">未找到匹配的文件</h3>
+                            <p class="mt-1 text-sm text-gray-500" x-text="searchQuery ? '尝试使用其他关键词搜索' : '文件列表为空'"></p>
+                        </div>
+                    </div>
+                    
+                    <!-- 上传按钮 -->
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <label class="flex items-center justify-center w-full px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer transition-colors">
+                            <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            <span class="text-sm font-medium text-gray-700">上传PDF文件</span>
+                            <input type="file" class="hidden" accept=".pdf" @change="handleFileUpload">
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 操作指南 -->
+                <div class="mt-4 bg-blue-50 rounded-xl p-4 border border-blue-100">
+                    <h3 class="text-sm font-semibold text-blue-800 mb-2 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        使用说明
+                    </h3>
+                    <ul class="text-xs text-blue-700 space-y-1">
+                        <li class="flex items-start">
+                            <span class="inline-block w-1.5 h-1.5 bg-blue-400 rounded-full mt-1 mr-2 flex-shrink-0"></span>
+                            <span>点击左侧文件列表中的PDF文件查看</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="inline-block w-1.5 h-1.5 bg-blue-400 rounded-full mt-1 mr-2 flex-shrink-0"></span>
+                            <span>使用搜索框快速查找文件</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="inline-block w-1.5 h-1.5 bg-blue-400 rounded-full mt-1 mr-2 flex-shrink-0"></span>
+                            <span>可拖放或点击"上传PDF文件"添加新文件</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 右侧PDF查看器 -->
+            <div class="lg:col-span-3">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 h-full flex flex-col">
+                    <!-- 查看器标题栏 -->
+                    <div class="border-b border-gray-200 px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-800" x-text="activeFile ? '📄 ' + activeFile.name : 'PDF查看器'"></h2>
+                                <p class="text-sm text-gray-500 mt-1" x-text="activeFile ? '最后修改: ' + activeFile.date + ' | 大小: ' + formatFileSize(activeFile.size) : '请从左侧选择文件'"></p>
+                            </div>
+                            
+                            <!-- 控制按钮 -->
+                            <div class="flex space-x-2" x-show="activeFile">
+                                <button 
+                                    class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 flex items-center transition-colors"
+                                    @click="downloadCurrentFile"
+                                >
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                    </svg>
+                                    下载
+                                </button>
+                                <button 
+                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white flex items-center transition-colors"
+                                    @click="printCurrentFile"
+                                >
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                                    </svg>
+                                    打印
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- PDF查看器容器 -->
+                    <div class="flex-1 p-6 overflow-auto">
+                        <!-- 加载状态 -->
+                        <div x-show="isLoading" class="h-full flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="loading-spinner mx-auto mb-4"></div>
+                                <p class="text-gray-600">正在加载PDF文件...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 占位符（无文件时显示） -->
+                        <div x-show="!activeFile && !isLoading" class="h-full flex items-center justify-center">
+                            <div class="text-center">
+                                <svg class="mx-auto h-16 w-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <h3 class="mt-4 text-lg font-medium text-gray-900">未选择文件</h3>
+                                <p class="mt-1 text-gray-500">请从左侧文件列表中选择一个PDF文件进行查看</p>
+                                <div class="mt-6">
+                                    <p class="text-sm text-gray-500">或拖放PDF文件到此处</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- PDF查看器iframe -->
+                        <div x-show="activeFile && !isLoading" class="h-full">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center space-x-2">
+                                    <button 
+                                        class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700 flex items-center transition-colors"
+                                        @click="prevPage"
+                                        :disabled="currentPage <= 1 || useNativeViewer"
+                                        :class="{'opacity-50': currentPage <= 1 || useNativeViewer}"
+                                    >
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                                        </svg>
+                                        上一页
+                                    </button>
+                                    <span class="text-sm text-gray-600">
+                                        第 <span class="font-semibold" x-text="currentPage"></span> 页 / 共 <span class="font-semibold" x-text="totalPages || '?'"></span> 页
+                                    </span>
+                                    <button 
+                                        class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700 flex items-center transition-colors"
+                                        @click="nextPage"
+                                        :disabled="currentPage >= totalPages || useNativeViewer"
+                                        :class="{'opacity-50': currentPage >= totalPages || useNativeViewer}"
+                                    >
+                                        下一页
+                                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                <div class="flex items-center space-x-4">
+                                    <div class="flex items-center">
+                                        <span class="text-sm text-gray-600 mr-2">缩放:</span>
+                                        <div class="flex items-center space-x-1">
+                                            <button 
+                                                class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded"
+                                                @click="zoomOut"
+                                                :disabled="useNativeViewer"
+                                                :class="{'opacity-50': useNativeViewer}"
+                                            >
+                                                <span class="text-lg">-</span>
+                                            </button>
+                                            <span class="w-16 text-center text-sm font-medium" x-text="Math.round(zoom * 100) + '%'"></span>
+                                            <button 
+                                                class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded"
+                                                @click="zoomIn"
+                                                :disabled="useNativeViewer"
+                                                :class="{'opacity-50': useNativeViewer}"
+                                            >
+                                                <span class="text-lg">+</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- PDF显示区域 -->
+                                <div class="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                                    <div x-show="!useNativeViewer" class="flex items-center justify-center p-8 min-h-[600px] overflow-auto">
+                                        <canvas id="pdfCanvas" class="pdf-canvas"></canvas>
+                                    </div>
+                                    <div x-show="useNativeViewer" class="p-2 min-h-[600px]">
+                                        <iframe class="w-full h-[600px] border-0" :src="nativeFrameUrl"></iframe>
+                                    </div>
+                                </div>
+                            
+                            <!-- 错误信息 -->
+                            <div x-show="errorMessage" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    <span class="text-red-700" x-text="errorMessage"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 页脚 -->
+        <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-500 text-sm">
+            <p>PDF文件查看器 &copy; 2026 丙午马年 | 使用 Tailwind CSS 和 Alpine.js 构建</p>
+        </footer>
+    </div>
+
+    <script>
+        function pdfViewer() {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+            return {
+                // 初始化PDF文件列表
+                pdfFiles: [
+                    { name: "HSK4样卷.pdf", url: "./Mock_question/40000/HSK4样卷.pdf", size: 0, date: "本地文件" },
+                    { name: "H41001.pdf", url: "./Mock_question/41001/H41001.pdf", size: 0, date: "本地文件" },
+                    { name: "H41002试题含答案.pdf", url: "./Mock_question/41002/H41002试题含答案.pdf", size: 0, date: "本地文件" },
+                    { name: "H41003试题含答案.pdf", url: "./Mock_question/41003/H41003试题含答案.pdf", size: 0, date: "本地文件" },
+                    { name: "H41004试题.pdf", url: "./Mock_question/41004/H41004试题.pdf", size: 0, date: "本地文件" },
+                    { name: "H41005.pdf", url: "./Mock_question/41005/H41005.pdf", size: 0, date: "本地文件" },
+                    { name: "H41006.pdf", url: "./Mock_question/41006/H41006.pdf", size: 0, date: "本地文件" },
+                    { name: "H41007试题.pdf", url: "./Mock_question/41007/H41007试题.pdf", size: 0, date: "本地文件" },
+                    { name: "H41008试题.pdf", url: "./Mock_question/41008/H41008试题.pdf", size: 0, date: "本地文件" },
+                    { name: "H41009试题.pdf", url: "./Mock_question/41009/H41009试题.pdf", size: 0, date: "本地文件" },
+                    { name: "H41110试题.pdf", url: "./Mock_question/41110/H41110试题.pdf", size: 0, date: "本地文件" },
+                    { name: "H41111试题.pdf", url: "./Mock_question/41111/H41111试题.pdf", size: 0, date: "本地文件" },
+                    { name: "H41218试卷.pdf", url: "./Mock_question/41218/H41218试卷.pdf", size: 0, date: "本地文件" },
+                    { name: "H41219试卷.pdf", url: "./Mock_question/41219/H41219试卷.pdf", size: 0, date: "本地文件" },
+                    { name: "H41220试卷.pdf", url: "./Mock_question/41220/H41220试卷.pdf", size: 0, date: "本地文件" },
+                    { name: "H41221试卷.pdf", url: "./Mock_question/41221/H41221试卷.pdf", size: 0, date: "本地文件" },
+                    { name: "41222试题及答案.pdf", url: "./Mock_question/41222/41222试题及答案.pdf", size: 0, date: "本地文件" },
+                    { name: "41223试题及答案.pdf", url: "./Mock_question/41223/41223试题及答案.pdf", size: 0, date: "本地文件" },
+                    { name: "41224试题及答案.pdf", url: "./Mock_question/41224/41224试题及答案.pdf", size: 0, date: "本地文件" },
+                    { name: "41225试题及答案.pdf", url: "./Mock_question/41225/41225试题及答案.pdf", size: 0, date: "本地文件" },
+                    { name: "H41327.pdf", url: "./Mock_question/41327/H41327.pdf", size: 0, date: "本地文件" },
+                    { name: "H41328.pdf", url: "./Mock_question/41328/H41328.pdf", size: 0, date: "本地文件" },
+                    { name: "H41329试题.pdf", url: "./Mock_question/41329/H41329试题.pdf", size: 0, date: "本地文件" },
+                    { name: "H41330.pdf", url: "./Mock_question/41330/H41330.pdf", size: 0, date: "本地文件" },
+                    { name: "H41331.pdf", url: "./Mock_question/41331/H41331.pdf", size: 0, date: "本地文件" },
+                    { name: "H41332试题及答案.pdf", url: "./Mock_question/41332/H41332试题及答案.pdf", size: 0, date: "本地文件" },
+                    { name: "H41333试题.pdf", url: "./Mock_question/41333/H41333试题.pdf", size: 0, date: "本地文件" },
+                    { name: "H41335.pdf", url: "./Mock_question/41335（缺听力，可做笔试）/H41335.pdf", size: 0, date: "本地文件" },
+                    { name: "H41438.pdf", url: "./Mock_question/41438（缺听力，可做笔试）/H41438.pdf", size: 0, date: "本地文件" },
+                    { name: "H41553B.pdf", url: "./Mock_question/41553B/H41553B.pdf", size: 0, date: "本地文件" },
+                    { name: "H41553C.pdf", url: "./Mock_question/41553C/H41553C.pdf", size: 0, date: "本地文件" },
+                    { name: "H41553D.pdf", url: "./Mock_question/41553D/H41553D.pdf", size: 0, date: "本地文件" }
+                ],
+                
+                // 过滤后的文件列表
+                filteredFiles: [],
+                
+                // 搜索查询
+                searchQuery: '',
+                
+                // 当前选中的文件
+                activeFile: null,
+                activeFileIndex: -1,
+                
+                // PDF查看器状态
+                isLoading: false,
+                currentPage: 1,
+                totalPages: 0,
+                zoom: 1.0,
+                errorMessage: '',
+                
+                // PDF iframe URL
+                pdfFrameUrl: '',
+                pdfDoc: null,
+                pageRendering: false,
+                pageNumPending: null,
+                useNativeViewer: false,
+                nativeFrameUrl: '',
+                
+                // 初始化函数
+                init() {
+                    this.filteredFiles = [...this.pdfFiles];
+                    
+                    // 设置拖放区域
+                    this.setupDragAndDrop();
+                    
+                    // 默认选择第一个文件
+                    if (this.pdfFiles.length > 0) {
+                        this.openPdf(0);
+                    }
+                },
+                
+                // 过滤文件
+                filterFiles() {
+                    if (!this.searchQuery.trim()) {
+                        this.filteredFiles = [...this.pdfFiles];
+                        return;
+                    }
+                    
+                    const query = this.searchQuery.toLowerCase();
+                    this.filteredFiles = this.pdfFiles.filter(file => 
+                        file.name.toLowerCase().includes(query)
+                    );
+                },
+                
+                // 打开PDF文件
+                async openPdf(index) {
+                    if (index < 0 || index >= this.filteredFiles.length) return;
+                    
+                    const file = this.filteredFiles[index];
+                    this.activeFile = file;
+                    this.activeFileIndex = index;
+                    this.isLoading = true;
+                    this.errorMessage = '';
+                    this.currentPage = 1;
+                    this.useNativeViewer = false;
+                    this.nativeFrameUrl = '';
+
+                    try {
+                        const rawUrl = file.url;
+                        const resolvedUrl = new URL(rawUrl, window.location.href).href;
+                        const encodedResolvedUrl = encodeURI(resolvedUrl);
+
+                        try {
+                            const loadingTask = pdfjsLib.getDocument(encodedResolvedUrl);
+                            this.pdfDoc = await loadingTask.promise;
+                        } catch (firstError) {
+                            const fallbackTask = pdfjsLib.getDocument(resolvedUrl);
+                            this.pdfDoc = await fallbackTask.promise;
+                        }
+
+                        this.totalPages = this.pdfDoc.numPages;
+                        await this.renderPage(this.currentPage);
+                    } catch (error) {
+                        try {
+                            const fallbackUrl = encodeURI(new URL(file.url, window.location.href).href);
+                            this.nativeFrameUrl = fallbackUrl;
+                            this.useNativeViewer = true;
+                            this.totalPages = 0;
+                            this.pdfDoc = null;
+                            this.isLoading = false;
+                            this.errorMessage = `PDF.js 无法解析：${file.name}，已切换为浏览器预览模式。`;
+                        } catch (fallbackError) {
+                            this.errorMessage = `PDF加载失败：${file.name}。请确认文件路径有效，并通过本地服务器访问页面。`;
+                            this.totalPages = 0;
+                            this.pdfDoc = null;
+                            this.isLoading = false;
+                        }
+                    }
+                },
+
+                async renderPage(pageNumber) {
+                    if (!this.pdfDoc) return;
+
+                    this.pageRendering = true;
+                    const page = await this.pdfDoc.getPage(pageNumber);
+                    const viewport = page.getViewport({ scale: this.zoom });
+                    const canvas = document.getElementById('pdfCanvas');
+                    if (!canvas) {
+                        this.pageRendering = false;
+                        return;
+                    }
+
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+
+                    this.isLoading = false;
+                    this.pageRendering = false;
+
+                    if (this.pageNumPending !== null) {
+                        const pendingPage = this.pageNumPending;
+                        this.pageNumPending = null;
+                        await this.renderPage(pendingPage);
+                    }
+                },
+
+                queueRenderPage(pageNumber) {
+                    if (this.pageRendering) {
+                        this.pageNumPending = pageNumber;
+                        return;
+                    }
+                    this.renderPage(pageNumber);
+                },
+                
+                // 上一页
+                prevPage() {
+                    if (this.currentPage > 1 && this.pdfDoc) {
+                        this.currentPage--;
+                        this.queueRenderPage(this.currentPage);
+                    }
+                },
+                
+                // 下一页
+                nextPage() {
+                    if (this.currentPage < this.totalPages && this.pdfDoc) {
+                        this.currentPage++;
+                        this.queueRenderPage(this.currentPage);
+                    }
+                },
+                
+                // 放大
+                zoomIn() {
+                    this.zoom = Math.min(this.zoom + 0.1, 3.0);
+                    if (this.pdfDoc) {
+                        this.queueRenderPage(this.currentPage);
+                    }
+                },
+                
+                // 缩小
+                zoomOut() {
+                    this.zoom = Math.max(this.zoom - 0.1, 0.5);
+                    if (this.pdfDoc) {
+                        this.queueRenderPage(this.currentPage);
+                    }
+                },
+                
+                // 下载当前文件
+                downloadCurrentFile() {
+                    if (!this.activeFile) return;
+                    
+                    const link = document.createElement('a');
+                    link.href = this.activeFile.url;
+                    link.download = this.activeFile.name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                },
+                
+                // 打印当前文件
+                printCurrentFile() {
+                    if (!this.activeFile) return;
+                    
+                    const printWindow = window.open(this.activeFile.url, '_blank');
+                    if (printWindow) {
+                        printWindow.onload = function() {
+                            printWindow.print();
+                        };
+                    }
+                },
+                
+                // 处理文件上传
+                handleFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file || file.type !== 'application/pdf') {
+                        alert('请选择PDF文件');
+                        return;
+                    }
+                    
+                    // 创建文件对象
+                    const newFile = {
+                        name: file.name,
+                        url: URL.createObjectURL(file),
+                        size: file.size,
+                        date: new Date().toISOString().split('T')[0]
+                    };
+                    
+                    // 添加到文件列表
+                    this.pdfFiles.unshift(newFile);
+                    this.filterFiles();
+                    
+                    // 自动打开新上传的文件
+                    setTimeout(() => {
+                        this.openPdf(0);
+                    }, 100);
+                    
+                    // 重置文件输入
+                    event.target.value = '';
+                },
+                
+                // 设置拖放功能
+                setupDragAndDrop() {
+                    const dropZone = document.querySelector('body');
+                    
+                    dropZone.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        dropZone.style.backgroundColor = '#f0f9ff';
+                    });
+                    
+                    dropZone.addEventListener('dragleave', (e) => {
+                        e.preventDefault();
+                        dropZone.style.backgroundColor = '';
+                    });
+                    
+                    dropZone.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        dropZone.style.backgroundColor = '';
+                        
+                        const files = e.dataTransfer.files;
+                        if (files.length > 0) {
+                            const file = files[0];
+                            if (file.type === 'application/pdf') {
+                                const event = { target: { files: [file] } };
+                                this.handleFileUpload(event);
+                            } else {
+                                alert('请拖放PDF文件');
+                            }
+                        }
+                    });
+                },
+                
+                // 格式化文件大小
+                formatFileSize(bytes) {
+                    if (bytes === 0) return '0 Bytes';
+                    
+                    const k = 1024;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                }
+            };
+        }
+    </script>
+</body>
+</html>
