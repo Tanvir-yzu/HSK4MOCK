@@ -318,7 +318,7 @@
         </div>
         
         <section class="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 class="text-lg font-semibold text-gray-800">Audio (MP3)</h2>
+            <h2 class="text-lg font-semibold text-gray-800">Audio</h2>
             <p class="text-sm text-gray-600 mt-1">Play the audio for the selected PDF when available.</p>
             <div class="mt-4" x-show="activeAudioUrl">
                 <p class="text-sm text-gray-700 mb-2">
@@ -343,8 +343,9 @@
                     <span class="text-sm text-gray-500 ml-2" x-text="formatAudioTime(audioCurrentTime) + ' / ' + formatAudioTime(audioDuration)"></span>
                 </div>
             </div>
+            <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800" x-show="audioErrorMessage" x-text="audioErrorMessage"></div>
             <div class="mt-4 text-sm text-gray-500" x-show="!activeAudioUrl">
-                No MP3 linked to the selected file.
+                No audio linked to the selected file.
             </div>
         </section>
 
@@ -440,6 +441,7 @@
                 nativeFrameUrl: '',
                 activeAudioUrl: '',
                 activeAudioName: '',
+                audioErrorMessage: '',
                 audioCurrentTime: 0,
                 audioDuration: 0,
                 
@@ -482,8 +484,9 @@
                     this.useNativeViewer = false;
                     this.nativeFrameUrl = '';
                     this.pdfDoc = null;
-                    this.activeAudioUrl = file.audioUrl || '';
-                    this.activeAudioName = file.audioUrl ? this.extractFileName(file.audioUrl) : '';
+                    this.audioErrorMessage = '';
+                    this.activeAudioUrl = await this.resolveAudioUrl(file.audioUrl || '');
+                    this.activeAudioName = this.activeAudioUrl ? this.extractFileName(this.activeAudioUrl) : '';
                     this.audioCurrentTime = 0;
                     this.audioDuration = 0;
 
@@ -633,6 +636,51 @@
                     const minutes = Math.floor(safeSeconds / 60);
                     const remainSeconds = safeSeconds % 60;
                     return `${minutes}:${String(remainSeconds).padStart(2, '0')}`;
+                },
+
+                async resolveAudioUrl(audioUrl) {
+                    if (!audioUrl) return '';
+
+                    const fileExtension = this.getFileExtension(audioUrl);
+                    if (fileExtension !== 'wma') {
+                        return audioUrl;
+                    }
+
+                    if (this.canPlayWmaNatively()) {
+                        return audioUrl;
+                    }
+
+                    const mp3FallbackUrl = audioUrl.replace(/\.wma(\?.*)?$/i, '.mp3$1');
+                    if (mp3FallbackUrl !== audioUrl && await this.urlExists(mp3FallbackUrl)) {
+                        return mp3FallbackUrl;
+                    }
+
+                    this.audioErrorMessage = 'This browser cannot play WMA audio. Please provide an MP3 version for this file.';
+                    return '';
+                },
+
+                canPlayWmaNatively() {
+                    const audioProbe = document.createElement('audio');
+                    const canPlay = audioProbe.canPlayType('audio/x-ms-wma') || audioProbe.canPlayType('audio/wma');
+                    return Boolean(canPlay && canPlay !== 'no');
+                },
+
+                async urlExists(fileUrl) {
+                    try {
+                        const resolvedUrl = new URL(fileUrl, window.location.href).href;
+                        const response = await fetch(resolvedUrl, { method: 'HEAD', cache: 'no-store' });
+                        return response.ok;
+                    } catch (_error) {
+                        return false;
+                    }
+                },
+
+                getFileExtension(path) {
+                    if (!path) return '';
+                    const cleanPath = String(path).split('?')[0];
+                    const lastDot = cleanPath.lastIndexOf('.');
+                    if (lastDot === -1) return '';
+                    return cleanPath.substring(lastDot + 1).toLowerCase();
                 },
 
                 extractFileName(path) {
