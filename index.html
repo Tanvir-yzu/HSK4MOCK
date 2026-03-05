@@ -425,19 +425,10 @@
                     this.currentPage = 1;
                     this.useNativeViewer = false;
                     this.nativeFrameUrl = '';
+                    this.pdfDoc = null;
 
                     try {
-                        const rawUrl = file.url;
-                        const resolvedUrl = new URL(rawUrl, window.location.href).href;
-                        const encodedResolvedUrl = encodeURI(resolvedUrl);
-
-                        try {
-                            const loadingTask = pdfjsLib.getDocument(encodedResolvedUrl);
-                            this.pdfDoc = await loadingTask.promise;
-                        } catch (firstError) {
-                            const fallbackTask = pdfjsLib.getDocument(resolvedUrl);
-                            this.pdfDoc = await fallbackTask.promise;
-                        }
+                        this.pdfDoc = await this.loadPdfDocument(file.url);
 
                         this.totalPages = this.pdfDoc.numPages;
                         await this.renderPage(this.currentPage);
@@ -455,6 +446,33 @@
                             this.totalPages = 0;
                             this.pdfDoc = null;
                             this.isLoading = false;
+                        }
+                    }
+                },
+
+                async loadPdfDocument(fileUrl) {
+                    const resolvedUrl = new URL(fileUrl, window.location.href).href;
+
+                    // Try loading by binary data first to avoid URL encoding/path edge cases.
+                    try {
+                        const response = await fetch(resolvedUrl, { cache: 'no-store' });
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+
+                        const data = await response.arrayBuffer();
+                        const loadingTask = pdfjsLib.getDocument({ data });
+                        return await loadingTask.promise;
+                    } catch (fetchLoadError) {
+                        // Fallback 1: absolute URL.
+                        try {
+                            const absoluteTask = pdfjsLib.getDocument(resolvedUrl);
+                            return await absoluteTask.promise;
+                        } catch (absoluteError) {
+                            // Fallback 2: encoded absolute URL for spaces/non-ASCII path segments.
+                            const encodedResolvedUrl = encodeURI(resolvedUrl);
+                            const encodedTask = pdfjsLib.getDocument(encodedResolvedUrl);
+                            return await encodedTask.promise;
                         }
                     }
                 },
