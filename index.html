@@ -333,7 +333,7 @@
                     { name: "41002试题含答案.pdf", url: "./Mock_question/41002/H41002.pdf", size: 0, date: "Local file" },
                     { name: "41003试题含答案.pdf", url: "./Mock_question/41003/H41003.pdf", size: 0, date: "Local file" },
                     { name: "41004试题.pdf", url: "./Mock_question/41004/H41004.pdf", size: 0, date: "Local file" },
-                    { name: "41005.pdf", url: "./Mock_question/41005/41005.pdf", size: 0, date: "Local file" },
+                    { name: "41005.pdf", url: "./Mock_question/41005/H41005.pdf", size: 0, date: "Local file" },
                     { name: "H41006.pdf", url: "./Mock_question/41006/H41006.pdf", size: 0, date: "Local file" },
                     { name: "H41007试题.pdf", url: "./Mock_question/41007/H41007.pdf", size: 0, date: "Local file" },
                     { name: "H41008试题.pdf", url: "./Mock_question/41008/H41008.pdf", size: 0, date: "Local file" },
@@ -442,7 +442,7 @@
                             this.isLoading = false;
                             this.errorMessage = `PDF.js could not parse: ${file.name}. Switched to browser preview mode.`;
                         } catch (fallbackError) {
-                            this.errorMessage = `Failed to load PDF: ${file.name}. Please verify the file path and use a local server to access this page.`;
+                            this.errorMessage = `Failed to load PDF: ${file.name}. Switched to browser preview mode. Please verify the file path and use a local server to access this page.`;
                             this.totalPages = 0;
                             this.pdfDoc = null;
                             this.isLoading = false;
