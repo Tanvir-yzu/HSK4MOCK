@@ -315,6 +315,19 @@
             </div>
         </div>
         
+        <section class="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-800">Audio (MP3)</h2>
+            <p class="text-sm text-gray-600 mt-1">Play the audio for the selected PDF when available.</p>
+            <div class="mt-4" x-show="activeAudioUrl">
+                <audio controls class="w-full" preload="none" :src="activeAudioUrl">
+                    Your browser does not support MP3 playback.
+                </audio>
+            </div>
+            <div class="mt-4 text-sm text-gray-500" x-show="!activeAudioUrl">
+                No MP3 linked to the selected file.
+            </div>
+        </section>
+
         <!-- Footer -->
         <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-500 text-sm">
             <p>PDF File Viewer &copy; 2026 | Built with Tailwind CSS and Alpine.js</p>
@@ -328,8 +341,8 @@
             return {
                 // Initialize PDF file list
                 pdfFiles: [
-                    { name: "40000.pdf", url: "./Mock_question/40000/40000.pdf", size: 0, date: "Local file" },
-                    { name: "41001.pdf", url: "./Mock_question/41001/H41001.pdf", size: 0, date: "Local file" },
+                    { name: "40000.pdf", url: "./Mock_question/40000/40000.pdf", audioUrl: "./Mock_question/40000/40000.mp3", size: 0, date: "Local file" },
+                    { name: "41001.pdf", url: "./Mock_question/41001/H41001.pdf", audioUrl: "./Mock_question/41001/H41001.mp3", size: 0, date: "Local file" },
                     { name: "41002试题含答案.pdf", url: "./Mock_question/41002/H41002.pdf", size: 0, date: "Local file" },
                     { name: "41003试题含答案.pdf", url: "./Mock_question/41003/H41003.pdf", size: 0, date: "Local file" },
                     { name: "41004试题.pdf", url: "./Mock_question/41004/H41004.pdf", size: 0, date: "Local file" },
@@ -404,6 +417,7 @@
                 pageNumPending: null,
                 useNativeViewer: false,
                 nativeFrameUrl: '',
+                activeAudioUrl: '',
                 
                 // Initialize
                 init() {
@@ -444,6 +458,7 @@
                     this.useNativeViewer = false;
                     this.nativeFrameUrl = '';
                     this.pdfDoc = null;
+                    this.activeAudioUrl = file.audioUrl || '';
 
                     try {
                         this.pdfDoc = await this.loadPdfDocument(file.url);
