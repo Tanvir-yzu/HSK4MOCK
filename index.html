@@ -21,7 +21,7 @@
         
         ::-webkit-scrollbar-track {
             background: #f1f1f1;
-            border-radius: 4px; 
+            border-radius: 4px;
         }
         
         ::-webkit-scrollbar-thumb {
@@ -58,27 +58,9 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
-        /* Timer pulse animation */
-        @keyframes pulse-red {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-        .timer-pulse {
-            animation: pulse-red 2s infinite;
-        }
     </style>
-
-    <script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "vrg937x5r4");
-    </script>
 </head>
-<body class="bg-gray-50 min-h-screen" x-data="{ ...pdfViewer(), ...timerComponent() }" x-init="init(); timerInit()">
+<body class="bg-gray-50 min-h-screen" x-data="pdfViewer()" x-init="init()">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Header -->
         <header class="mb-8">
@@ -87,107 +69,9 @@
                     <h1 class="text-3xl font-bold text-gray-900">📄 Chinese Proficiency Test</h1>
                     <p class="text-gray-600 mt-2">Click a PDF from the left file list to view it on the right</p>
                 </div>
-                <div class="flex flex-col items-end space-y-2">
+                <div class="flex items-center space-x-4">
                     <div class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg">
                         <span class="font-semibold" x-text="pdfFiles.length"></span> PDFs
-                    </div>
-                </div>
-            </div>
-
-            <!-- Timer Component -->
-            <div 
-                class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 transition-all duration-300"
-                :class="{'bg-red-50 border-red-300 timer-pulse': isFinished}"
-            >
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <!-- Timer Display -->
-                    <div class="flex items-center space-x-4">
-                        <div class="flex items-center space-x-2">
-                            <template x-for="(unit, index) in timerDisplay" :key="index">
-                                <div class="flex flex-col items-center">
-                                    <div class="bg-gray-100 rounded-lg px-3 py-2 min-w-[3rem] text-center" :class="{'bg-red-100 text-red-700': isFinished}">
-                                        <span class="text-2xl font-mono font-bold" x-text="unit.value"></span>
-                                    </div>
-                                    <span class="text-[10px] uppercase font-semibold text-gray-500 mt-1" x-text="unit.label"></span>
-                                </div>
-                            </template>
-                        </div>
-                        <div class="h-10 w-px bg-gray-200 hidden md:block"></div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-700" x-text="isFinished ? 'Time is up!' : (isRunning ? 'Countdown active' : 'Set your timer')"></p>
-                            <p class="text-xs text-gray-500" x-text="isFinished ? 'The mock test session has ended' : 'Keep track of your test time'"></p>
-                        </div>
-                    </div>
-
-                    <!-- Timer Controls & Settings -->
-                    <div class="flex flex-col sm:flex-row items-center gap-4">
-                        <!-- Settings (shown when idle) -->
-                        <div x-show="!isRunning && !isPaused && !isFinished" class="flex items-center gap-2">
-                            <select 
-                                x-model="timerMode" 
-                                class="text-sm border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="duration">Duration</option>
-                                <option value="target">Target Date</option>
-                            </select>
-                            
-                            <!-- Duration Inputs -->
-                            <div x-show="timerMode === 'duration'" class="flex items-center gap-1">
-                                <input type="number" x-model.number="inputHours" min="0" placeholder="HH" class="w-16 text-sm border-gray-300 rounded-lg">
-                                <span class="text-gray-400">:</span>
-                                <input type="number" x-model.number="inputMinutes" min="0" max="59" placeholder="MM" class="w-16 text-sm border-gray-300 rounded-lg">
-                                <span class="text-gray-400">:</span>
-                                <input type="number" x-model.number="inputSeconds" min="0" max="59" placeholder="SS" class="w-16 text-sm border-gray-300 rounded-lg">
-                            </div>
-
-                            <!-- Target Date Input -->
-                            <div x-show="timerMode === 'target'">
-                                <input type="datetime-local" x-model="targetDate" class="text-sm border-gray-300 rounded-lg">
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="flex items-center gap-2">
-                            <!-- Start -->
-                            <button 
-                                x-show="!isRunning && !isPaused && !isFinished"
-                                @click="startTimer"
-                                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center"
-                            >
-                                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M4.018 14L14.41 8 4.018 2v12z"/></svg>
-                                Start Timer
-                            </button>
-
-                            <!-- Pause -->
-                            <button 
-                                x-show="isRunning && !isFinished"
-                                @click="pauseTimer"
-                                class="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors flex items-center"
-                            >
-                                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                Pause
-                            </button>
-
-                            <!-- Resume -->
-                            <button 
-                                x-show="isPaused && !isFinished"
-                                @click="resumeTimer"
-                                class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors flex items-center"
-                            >
-                                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M4.018 14L14.41 8 4.018 2v12z"/></svg>
-                                Resume
-                            </button>
-
-                            <!-- Reset -->
-                            <button 
-                                x-show="isRunning || isPaused || isFinished"
-                                @click="resetTimer"
-                                class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors flex items-center"
-                            >
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                Reset
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -472,160 +356,7 @@
         </footer>
     </div>
 
-        function timerComponent() {
-            return {
-                timerMode: 'duration', // 'duration' or 'target'
-                inputHours: 1,
-                inputMinutes: 0,
-                inputSeconds: 0,
-                targetDate: '',
-                
-                endTime: null,
-                remainingTime: 0,
-                timerInterval: null,
-                
-                isRunning: false,
-                isPaused: false,
-                isFinished: false,
-                
-                timerDisplay: [
-                    { label: 'Days', value: '00' },
-                    { label: 'Hours', value: '00' },
-                    { label: 'Mins', value: '00' },
-                    { label: 'Secs', value: '00' }
-                ],
-
-                timerInit() {
-                    const savedState = JSON.parse(localStorage.getItem('hsk_timer_state'));
-                    if (savedState) {
-                        this.timerMode = savedState.timerMode || 'duration';
-                        this.endTime = savedState.endTime;
-                        this.isPaused = savedState.isPaused || false;
-                        this.remainingTime = savedState.remainingTime || 0;
-                        this.targetDate = savedState.targetDate || '';
-                        this.inputHours = savedState.inputHours ?? 1;
-                        this.inputMinutes = savedState.inputMinutes ?? 0;
-                        this.inputSeconds = savedState.inputSeconds ?? 0;
-
-                        if (this.endTime && !this.isPaused) {
-                            const now = new Date().getTime();
-                            if (this.endTime > now) {
-                                this.isRunning = true;
-                                this.startInterval();
-                            } else {
-                                this.isFinished = true;
-                                this.remainingTime = 0;
-                                this.updateDisplay();
-                            }
-                        } else if (this.isPaused) {
-                            this.updateDisplay();
-                        }
-                    }
-                },
-
-                saveState() {
-                    const state = {
-                        timerMode: this.timerMode,
-                        endTime: this.endTime,
-                        isPaused: this.isPaused,
-                        remainingTime: this.remainingTime,
-                        targetDate: this.targetDate,
-                        inputHours: this.inputHours,
-                        inputMinutes: this.inputMinutes,
-                        inputSeconds: this.inputSeconds
-                    };
-                    localStorage.setItem('hsk_timer_state', JSON.stringify(state));
-                },
-
-                startTimer() {
-                    if (this.timerMode === 'duration') {
-                        const totalSeconds = (this.inputHours * 3600) + (this.inputMinutes * 60) + this.inputSeconds;
-                        if (totalSeconds <= 0) return;
-                        this.endTime = new Date().getTime() + (totalSeconds * 1000);
-                    } else {
-                        if (!this.targetDate) return;
-                        this.endTime = new Date(this.targetDate).getTime();
-                        if (this.endTime <= new Date().getTime()) {
-                            alert('Please select a future date and time');
-                            return;
-                        }
-                    }
-
-                    this.isRunning = true;
-                    this.isPaused = false;
-                    this.isFinished = false;
-                    this.saveState();
-                    this.startInterval();
-                },
-
-                pauseTimer() {
-                    clearInterval(this.timerInterval);
-                    this.isRunning = false;
-                    this.isPaused = true;
-                    this.remainingTime = Math.max(0, Math.floor((this.endTime - new Date().getTime()) / 1000));
-                    this.saveState();
-                },
-
-                resumeTimer() {
-                    this.endTime = new Date().getTime() + (this.remainingTime * 1000);
-                    this.isRunning = true;
-                    this.isPaused = false;
-                    this.saveState();
-                    this.startInterval();
-                },
-
-                resetTimer() {
-                    clearInterval(this.timerInterval);
-                    this.endTime = null;
-                    this.remainingTime = 0;
-                    this.isRunning = false;
-                    this.isPaused = false;
-                    this.isFinished = false;
-                    this.updateDisplay();
-                    localStorage.removeItem('hsk_timer_state');
-                },
-
-                startInterval() {
-                    this.updateDisplay();
-                    this.timerInterval = setInterval(() => {
-                        this.updateDisplay();
-                    }, 1000);
-                },
-
-                updateDisplay() {
-                    const now = new Date().getTime();
-                    let diff;
-
-                    if (this.isPaused) {
-                        diff = this.remainingTime;
-                    } else if (this.endTime) {
-                        diff = Math.max(0, Math.floor((this.endTime - now) / 1000));
-                    } else {
-                        diff = 0;
-                    }
-
-                    if (diff <= 0 && (this.isRunning || this.isPaused)) {
-                        clearInterval(this.timerInterval);
-                        this.isRunning = false;
-                        this.isPaused = false;
-                        this.isFinished = true;
-                        diff = 0;
-                        this.saveState();
-                    }
-
-                    const days = Math.floor(diff / (24 * 3600));
-                    const hours = Math.floor((diff % (24 * 3600)) / 3600);
-                    const minutes = Math.floor((diff % 3600) / 60);
-                    const seconds = Math.floor(diff % 60);
-
-                    this.timerDisplay[0].value = String(days).padStart(2, '0');
-                    this.timerDisplay[1].value = String(hours).padStart(2, '0');
-                    this.timerDisplay[2].value = String(minutes).padStart(2, '0');
-                    this.timerDisplay[3].value = String(seconds).padStart(2, '0');
-                }
-            };
-        }
-
+    <script>
         function pdfViewer() {
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
