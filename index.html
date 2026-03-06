@@ -70,6 +70,36 @@
                     <p class="text-gray-600 mt-2">Click a PDF from the left file list to view it on the right</p>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <div class="bg-amber-50 text-amber-800 px-4 py-2 rounded-lg flex items-center space-x-3">
+                        <div>
+                            <p class="text-xs font-medium">Time Counter</p>
+                            <p class="font-mono font-semibold" x-text="formatTimer(timerSeconds)"></p>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <button
+                                class="px-2 py-1 rounded bg-white border border-amber-200 text-xs font-medium hover:bg-amber-100"
+                                @click="startTimer"
+                                :disabled="isTimerRunning"
+                                :class="{ 'opacity-50 cursor-not-allowed': isTimerRunning }"
+                            >
+                                Start
+                            </button>
+                            <button
+                                class="px-2 py-1 rounded bg-white border border-amber-200 text-xs font-medium hover:bg-amber-100"
+                                @click="pauseTimer"
+                                :disabled="!isTimerRunning"
+                                :class="{ 'opacity-50 cursor-not-allowed': !isTimerRunning }"
+                            >
+                                Pause
+                            </button>
+                            <button
+                                class="px-2 py-1 rounded bg-white border border-amber-200 text-xs font-medium hover:bg-amber-100"
+                                @click="resetTimer"
+                            >
+                                Reset
+                            </button>
+                        </div>
+                    </div>
                     <div class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg">
                         <span class="font-semibold" x-text="pdfFiles.length"></span> PDFs
                     </div>
@@ -444,10 +474,14 @@
                 audioErrorMessage: '',
                 audioCurrentTime: 0,
                 audioDuration: 0,
+                timerSeconds: 0,
+                timerInterval: null,
+                isTimerRunning: false,
                 
                 // Initialize
                 init() {
                     this.filteredFiles = [...this.pdfFiles];
+                    this.startTimer();
                     
                     // Set up drag and drop area
                     this.setupDragAndDrop();
@@ -787,6 +821,36 @@
                     const i = Math.floor(Math.log(bytes) / Math.log(k));
                     
                     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                                    },
+
+                                    startTimer() {
+                                        if (this.isTimerRunning) return;
+
+                                        this.isTimerRunning = true;
+                                        this.timerInterval = setInterval(() => {
+                                            this.timerSeconds += 1;
+                                        }, 1000);
+                                    },
+
+                                    pauseTimer() {
+                                        if (!this.isTimerRunning) return;
+
+                                        clearInterval(this.timerInterval);
+                                        this.timerInterval = null;
+                                        this.isTimerRunning = false;
+                                    },
+
+                                    resetTimer() {
+                                        this.pauseTimer();
+                                        this.timerSeconds = 0;
+                                    },
+
+                                    formatTimer(totalSeconds) {
+                                        const safeSeconds = Number.isFinite(totalSeconds) ? Math.max(0, Math.floor(totalSeconds)) : 0;
+                                        const hours = Math.floor(safeSeconds / 3600);
+                                        const minutes = Math.floor((safeSeconds % 3600) / 60);
+                                        const seconds = safeSeconds % 60;
+                                        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
                 }
             };
         }
