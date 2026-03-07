@@ -303,28 +303,6 @@
                                 <h2 class="text-lg font-semibold text-gray-800" x-text="activeFile ? '📄 ' + activeFile.name : 'PDF Viewer'"></h2>
                                 <p class="text-sm text-gray-500 mt-1" x-text="activeFile ? 'Last modified: ' + activeFile.date + ' | Size: ' + formatFileSize(activeFile.size) : 'Please select a file from the left'"></p>
                             </div>
-                            
-                            <!-- Action buttons -->
-                            <div class="flex space-x-2" x-show="activeFile">
-                                <button 
-                                    class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 flex items-center transition-colors"
-                                    @click="downloadCurrentFile"
-                                >
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                    </svg>
-                                    Download
-                                </button>
-                                <button 
-                                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white flex items-center transition-colors"
-                                    @click="printCurrentFile"
-                                >
-                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                                    </svg>
-                                    Print
-                                </button>
-                            </div>
                         </div>
                     </div>
                     
@@ -354,68 +332,40 @@
                         
                         <!-- PDF viewer area -->
                         <div x-show="activeFile && !isLoading" class="h-full">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="flex items-center space-x-2">
-                                    <button 
-                                        class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700 flex items-center transition-colors"
-                                        @click="prevPage"
-                                        :disabled="currentPage <= 1 || useNativeViewer"
-                                        :class="{'opacity-50': currentPage <= 1 || useNativeViewer}"
+                            <div class="mb-4 w-full">
+                                <div class="w-full min-w-0 p-3 bg-gradient-to-r from-sky-50 via-cyan-50 to-indigo-50 border border-sky-200 rounded-lg shadow-sm" x-show="activeAudioUrl">
+                                    <p class="text-xs text-slate-700 mb-2 break-all" x-text="activeAudioName"></p>
+                                    <audio
+                                        x-ref="audioPlayer"
+                                        controls
+                                        class="block w-full accent-sky-600"
+                                        preload="none"
+                                        :src="activeAudioUrl"
+                                        @play="setAudioPlaying(true)"
+                                        @pause="setAudioPlaying(false)"
+                                        @ended="setAudioPlaying(false)"
+                                        @timeupdate="updateAudioProgress"
+                                        @loadedmetadata="updateAudioProgress"
                                     >
-                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                                        </svg>
-                                        Previous
-                                    </button>
-                                    <span class="text-sm text-gray-600">
-                                        Page <span class="font-semibold" x-text="currentPage"></span> / <span class="font-semibold" x-text="totalPages || '?'"></span>
-                                    </span>
-                                    <button 
-                                        class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700 flex items-center transition-colors"
-                                        @click="nextPage"
-                                        :disabled="currentPage >= totalPages || useNativeViewer"
-                                        :class="{'opacity-50': currentPage >= totalPages || useNativeViewer}"
-                                    >
-                                        Next
-                                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                                
-                                <div class="flex items-center space-x-4">
-                                    <div class="flex items-center">
-                                        <span class="text-sm text-gray-600 mr-2">Zoom:</span>
-                                        <div class="flex items-center space-x-1">
-                                            <button 
-                                                class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded"
-                                                @click="zoomOut"
-                                                :disabled="useNativeViewer"
-                                                :class="{'opacity-50': useNativeViewer}"
-                                            >
-                                                <span class="text-lg">-</span>
-                                            </button>
-                                            <span class="w-16 text-center text-sm font-medium" x-text="Math.round(zoom * 100) + '%'"></span>
-                                            <button 
-                                                class="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded"
-                                                @click="zoomIn"
-                                                :disabled="useNativeViewer"
-                                                :class="{'opacity-50': useNativeViewer}"
-                                            >
-                                                <span class="text-lg">+</span>
-                                            </button>
-                                        </div>
+                                        Your browser does not support MP3 playback.
+                                    </audio>
+                                    <div class="mt-2 flex flex-wrap items-center gap-2 w-full">
+                                        <button class="px-2.5 py-1 bg-white/90 hover:bg-white border border-sky-200 rounded text-xs font-medium text-slate-700 transition-colors" @click="seekAudio(-10)">-10s</button>
+                                        <button class="px-2.5 py-1 bg-white/90 hover:bg-white border border-sky-200 rounded text-xs font-medium text-slate-700 transition-colors" @click="seekAudio(-5)">-5s</button>
+                                        <button class="px-2.5 py-1 bg-white/90 hover:bg-white border border-sky-200 rounded text-xs font-medium text-slate-700 transition-colors" @click="seekAudio(5)">+5s</button>
+                                        <button class="px-2.5 py-1 bg-white/90 hover:bg-white border border-sky-200 rounded text-xs font-medium text-slate-700 transition-colors" @click="seekAudio(10)">+10s</button>
+                                        <span class="text-xs text-slate-600 ml-auto" x-text="formatAudioTime(audioCurrentTime) + ' / ' + formatAudioTime(audioDuration)"></span>
                                     </div>
                                 </div>
                             </div>
                             
                             <!-- PDF display area -->
                                 <div class="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-                                    <div x-show="!useNativeViewer" class="flex items-center justify-center p-8 min-h-[600px] overflow-auto">
+                                    <div x-show="!useNativeViewer" class="flex items-center justify-center p-8 min-h-[780px] overflow-auto">
                                         <canvas id="pdfCanvas" class="pdf-canvas"></canvas>
                                     </div>
-                                    <div x-show="useNativeViewer" class="p-2 min-h-[600px]">
-                                        <iframe class="w-full h-[600px] border-0" :src="nativeFrameUrl"></iframe>
+                                    <div x-show="useNativeViewer" class="p-2 min-h-[780px]">
+                                        <iframe class="w-full h-[780px] border-0" :src="nativeFrameUrl"></iframe>
                                     </div>
                                 </div>
                             
@@ -434,43 +384,7 @@
             </div>
         </div>
         
-        <section
-            class="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6 transition-all duration-300"
-            :class="isAudioPlaying ? 'sticky top-3 z-40 shadow-lg ring-1 ring-blue-100' : ''"
-        >
-            <h2 class="text-lg font-semibold text-gray-800">Audio</h2>
-            <p class="text-sm text-gray-600 mt-1">Play the audio for the selected PDF when available.</p>
-            <div class="mt-4" x-show="activeAudioUrl">
-                <p class="text-sm text-gray-700 mb-2">
-                    File: <span class="font-medium" x-text="activeAudioName"></span>
-                </p>
-                <audio
-                    x-ref="audioPlayer"
-                    controls
-                    class="w-full"
-                    preload="none"
-                    :src="activeAudioUrl"
-                    @play="setAudioPlaying(true)"
-                    @pause="setAudioPlaying(false)"
-                    @ended="setAudioPlaying(false)"
-                    @timeupdate="updateAudioProgress"
-                    @loadedmetadata="updateAudioProgress"
-                >
-                    Your browser does not support MP3 playback.
-                </audio>
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                    <button class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700" @click="seekAudio(-10)">-10s</button>
-                    <button class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700" @click="seekAudio(-5)">-5s</button>
-                    <button class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700" @click="seekAudio(5)">+5s</button>
-                    <button class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm font-medium text-gray-700" @click="seekAudio(10)">+10s</button>
-                    <span class="text-sm text-gray-500 ml-2" x-text="formatAudioTime(audioCurrentTime) + ' / ' + formatAudioTime(audioDuration)"></span>
-                </div>
-            </div>
-            <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800" x-show="audioErrorMessage" x-text="audioErrorMessage"></div>
-            <div class="mt-4 text-sm text-gray-500" x-show="!activeAudioUrl">
-                No audio linked to the selected file.
-            </div>
-        </section>
+        <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800" x-show="audioErrorMessage" x-text="audioErrorMessage"></div>
 
         <!-- Footer -->
         <footer class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-500 text-sm">
